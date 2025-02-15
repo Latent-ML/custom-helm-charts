@@ -1,0 +1,130 @@
+{{- $serviceSA := .Values.ai.serviceAccount | default (include "briefer.global.serviceAccount" .) -}}
+{{- $serviceTolerations := .Values.ai.tolerations | default (include "briefer.global.tolerations" .) -}}
+{{- $serviceAffinity := .Values.ai.affinity | default (include "briefer.global.affinity" .) -}}
+
+{{- if .Values.ai.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-deployment
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+      app.kubernetes.io/name: briefer
+      app.kubernetes.io/component: ai
+spec:
+  replicas: {{ .Values.ai.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: briefer
+      app.kubernetes.io/component: ai
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: briefer
+        app.kubernetes.io/component: ai
+    spec:
+      serviceAccountName: {{ $serviceSA }}
+      containers:
+        - name: ai
+          image: '{{ .Values.ai.image.repository }}/{{ .Values.ai.image.name }}:{{ .Values.ai.image.tag }}'
+          imagePullPolicy: '{{ .Values.ai.image.pullPolicy | default "Always" }}'
+          {{- if .Values.ai.resources }}
+          resources:
+            {{- with .Values.ai.resources.requests }}
+            requests:
+              {{- if .memory }}
+              memory: {{ .memory | quote }}
+              {{- end }}
+              {{- if .cpu }}
+              cpu: {{ .cpu | quote }}
+              {{- end }}
+            {{- end }}
+            {{- with .Values.ai.resources.limits }}
+            limits:
+              {{- if .memory }}
+              memory: {{ .memory | quote }}
+              {{- end }}
+              {{- if .cpu }}
+              cpu: {{ .cpu | quote }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+          env:
+            - name: USE_AZURE
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: USE_AZURE
+            - name: AZURE_OPENAI_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: AZURE_OPENAI_ENDPOINT
+            - name: AZURE_API_VERSION
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: AZURE_API_VERSION
+            - name: AZURE_DEPLOYMENT
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: AZURE_DEPLOYMENT
+            - name: PORT
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: PORT
+            - name: OPENAI_DEFAULT_MODEL_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: OPENAI_DEFAULT_MODEL_NAME
+            - name: BASIC_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: AIAPIUSERNAME
+            - name: BASIC_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: AIAPIPASSWORD
+            - name: OPENAIAPIKEY
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: OPENAIAPIKEY
+
+      {{- if $serviceAffinity }}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            {{- range $serviceAffinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms }}
+            - matchExpressions:
+              {{- range .matchExpressions }}
+              - key: {{ .key }}
+                operator: {{ .operator }}
+                {{- if .values }}
+                values:
+                {{- range .values }}
+                - {{ . }}
+                {{- end }}
+                {{- end }}
+              {{- end }}
+            {{- end }}
+      {{- end }}
+
+      {{- if $serviceTolerations }}
+      tolerations:
+        {{- range $serviceTolerations }}
+        - key: {{ .key }}
+          operator: {{ .operator }}
+          {{- if .value }}
+          value: {{ .value }}
+          {{- end }}
+          effect: {{ .effect }}
+        {{- end }}
+      {{- end }}
+{{- end }}
