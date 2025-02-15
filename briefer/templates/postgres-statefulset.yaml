@@ -1,0 +1,52 @@
+{{- $globalTolerations := .Values.global.tolerations }}
+{{- $globalAffinity := .Values.global.affinity }}
+
+{{- if .Values.enableLocalPostgres }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  namespace: '{{ .Release.Namespace }}'
+  name: briefer-postgres
+spec:
+  serviceName: briefer-postgres-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: briefer
+      app.kubernetes.io/component: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: briefer
+        app.kubernetes.io/component: postgres
+    spec:
+      containers:
+      - name: postgres    # Changed from 'api' to 'postgres'
+        image: postgres:latest
+        livenessProbe:
+          exec:
+            command: ["bash", "-ec", 'PGPASSWORD=$POSTGRES_PASSWORD psql -w -U $POSTGRES_USER -d postgres -c "SELECT 1"']
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+          timeoutSeconds: 5
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: briefer-env
+              key: POSTGRES_DATABASE
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: briefer-env
+              key: POSTGRESUSERNAME
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: briefer-env
+              key: POSTGRESPASSWORD
+        ports:
+        - containerPort: {{.Values.api.env.postgresPort}}
+          name: postgres-port
+{{- end }}

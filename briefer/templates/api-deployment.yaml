@@ -1,0 +1,317 @@
+{{- $serviceSA := .Values.api.serviceAccount | default (include "briefer.global.serviceAccount" .) -}}
+{{- $serviceTolerations := .Values.api.tolerations | default (include "briefer.global.tolerations" .) -}}
+{{- $serviceAffinity := .Values.api.affinity | default (include "briefer.global.affinity" .) -}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-deployment
+  namespace: '{{ .Release.Namespace }}'
+  labels:
+    app.kubernetes.io/name: briefer
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.api.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: briefer
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: briefer
+        app.kubernetes.io/component: api
+    spec:
+      serviceAccountName: {{ $serviceSA }}
+      terminationGracePeriodSeconds: 600
+      initContainers:
+        - name: db-migration
+          image: '{{ .Values.api.image.repository }}/{{ .Values.api.image.name }}:{{ .Values.api.image.tag }}'
+          imagePullPolicy: '{{ .Values.api.image.pullPolicy | default "Always" }}'
+          workingDir: /app/packages/database
+          command: ["/bin/sh"]
+          args:
+            - "-c"
+            - "export POSTGRES_PRISMA_URL=postgresql://$POSTGRES_USERNAME:$POSTGRES_PASSWORD@$POSTGRES_HOSTNAME:$POSTGRES_PORT/$POSTGRES_DATABASE?schema=public && npx prisma migrate deploy"
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: NODE_ENV
+            - name: POSTGRES_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRESUSERNAME
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRESPASSWORD
+            - name: POSTGRES_HOSTNAME
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRES_HOSTNAME
+            - name: POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRES_PORT
+            - name: POSTGRES_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRES_DATABASE
+            - name: POSTGRES_SSL_DISABLED
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRES_SSL_DISABLED
+            - name: POSTGRES_SSL_REJECT_UNAUTHORIZED
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRES_SSL_REJECT_UNAUTHORIZED
+            - name: POSTGRES_SSL_CA
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRES_SSL_CA
+
+          resources:
+            requests:
+              cpu: 100m
+            limits:
+              memory: 1Gi
+      containers:
+        - name: api
+          image: '{{ .Values.api.image.repository }}/{{ .Values.api.image.name }}:{{ .Values.api.image.tag }}'
+          imagePullPolicy: '{{ .Values.api.image.pullPolicy | default "Always" }}'
+          {{- if .Values.api.resources }}
+          resources:
+            {{- with .Values.api.resources.requests }}
+            requests:
+              {{- if .memory }}
+              memory: {{ .memory | quote }}
+              {{- end }}
+              {{- if .cpu }}
+              cpu: {{ .cpu | quote }}
+              {{- end }}
+            {{- end }}
+            {{- with .Values.api.resources.limits }}
+            limits:
+              {{- if .memory }}
+              memory: {{ .memory | quote }}
+              {{- end }}
+              {{- if .cpu }}
+              cpu: {{ .cpu | quote }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: NODE_ENV
+            - name: LOG_LEVEL
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: LOG_LEVEL
+            - name: API_URL
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: API_URL
+            - name: FRONTEND_URL
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: FRONTEND_URL
+            - name: JUPYTER_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: JUPYTER_HOST
+            - name: JUPYTER_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: JUPYTER_PORT
+            - name: JUPYTER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: JUPYTERTOKEN
+            - name: POSTGRES_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRESUSERNAME
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRESPASSWORD
+            - name: POSTGRES_HOSTNAME
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRES_HOSTNAME
+            - name: POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRES_PORT
+            - name: POSTGRES_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRES_DATABASE
+            - name: POSTGRES_CONNECTION_LIMIT
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRES_CONNECTION_LIMIT
+            - name: POSTGRES_POOL_TIMEOUT
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRES_POOL_TIMEOUT
+            - name: POSTGRES_SSL_DISABLED
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRES_SSL_DISABLED
+            - name: POSTGRES_SSL_REJECT_UNAUTHORIZED
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRES_SSL_REJECT_UNAUTHORIZED
+            - name: POSTGRES_SSL_CA
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: POSTGRES_SSL_CA
+            - name: LOGIN_LINK_EXPIRATION
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: LOGIN_LINK_EXPIRATION
+            - name: LOGIN_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: LOGINJWTSECRET
+            - name: AUTH_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: AUTHJWTSECRET
+            - name: AUTH_JWT_EXPIRATION
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: AUTH_JWT_EXPIRATION
+            - name: ALLOW_HTTP
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: ALLOW_HTTP
+            - name: DATASOURCES_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: DATASOURCESENCRYPTIONKEY
+            - name: ENVIRONMENT_VARIABLES_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: ENVIRONMENTVARIABLESENCRYPTIONKEY
+            - name: WORKSPACE_SECRETS_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: WORKSPACESECRETSENCRYPTIONKEY
+            - name: INTEGRATIONS_CONFIG_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: INTEGRATIONSCONFIGENCRYPTIONKEY
+
+            # AI related environment variables
+            - name: AI_API_URL
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: AI_API_URL
+            - name: AI_API_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: AIAPIUSERNAME
+            - name: AI_API_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: AIAPIPASSWORD
+            - name: PYTHON_ALLOWED_LIBRARIES
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: PYTHON_ALLOWED_LIBRARIES
+            - name: YJS_DOCS_CACHE_SIZE_MB
+              valueFrom:
+                secretKeyRef:
+                  name: briefer-env
+                  key: YJS_DOCS_CACHE_SIZE_MB
+
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 90
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 90
+
+      {{- if $serviceAffinity }}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            {{- range $serviceAffinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms }}
+            - matchExpressions:
+              {{- range .matchExpressions }}
+              - key: {{ .key }}
+                operator: {{ .operator }}
+                {{- if .values }}
+                values:
+                {{- range .values }}
+                - {{ . }}
+                {{- end }}
+                {{- end }}
+              {{- end }}
+            {{- end }}
+      {{- end }}
+
+      {{- if $serviceTolerations }}
+      tolerations:
+        {{- range $serviceTolerations }}
+        - key: {{ .key }}
+          operator: {{ .operator }}
+          {{- if .value }}
+          value: {{ .value }}
+          {{- end }}
+          effect: {{ .effect }}
+        {{- end }}
+      {{- end }}
