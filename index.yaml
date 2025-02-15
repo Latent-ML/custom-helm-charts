@@ -3,12 +3,12 @@ entries:
   briefer:
   - apiVersion: v2
     appVersion: 0.2.0
-    created: "2025-02-14T23:09:39.894483-08:00"
+    created: "2025-02-14T23:26:18.858448-08:00"
     description: Latent customized briefer chart
-    digest: 79703029786193c24f62728713fd934d09ec2eba48bcb35b774d313027d3e005
+    digest: e091fa834b92bee7f4e305914b02c9ad516bf82bc1d64ce3fe6ebc71bc1ece3a
     name: briefer
     type: application
     urls:
     - https://latent-ml.github.io/custom-helm-charts/briefer/briefer-0.2.0.tgz
     version: 0.2.0
-generated: "2025-02-14T23:09:39.89403-08:00"
+generated: "2025-02-14T23:26:18.857527-08:00"

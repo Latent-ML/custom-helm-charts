@@ -14,17 +14,18 @@ metadata:
     {{- tpl (toYaml .) $ | nindent 4 }}
 {{- end }}
 spec:
-{{- with .Values.api.ingress.ingressClassName }}
-  ingressClassName: {{ . }}
-{{- end }}
+  ingressClassName: {{ .Values.api.ingress.ingressClassName | default "alb" }}
+  
+  # Automatically include TLS if ingress is enabled
   tls:
+    {{- range .Values.api.ingress.hosts }}
     - hosts:
-      {{- range .Values.api.ingress.hosts }}
-        - {{ tpl . $ | quote }}
-      {{- end }}
+        - {{ tpl . $ }}
+    {{- end }}
+  
   rules:
   {{- range .Values.api.ingress.hosts }}
-    - host: {{ tpl . $ | quote }}
+    - host: {{ tpl . $ }}
       http:
         paths:
           - path: {{ $.Values.api.ingress.path }}
@@ -35,3 +36,4 @@ spec:
                 port:
                   name: briefer-api
   {{- end }}
+{{- end }}
